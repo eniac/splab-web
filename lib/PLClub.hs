@@ -170,7 +170,7 @@ application = Alectryon.hakyllWith config $ \opts -> do
                 let indexCtx =
                         peopleContext ptags `mappend`
                         listField "meetings" siteContext (return meetings) `mappend`
-                        constField "title" "Programming Languages @ Penn" `mappend`
+                        constField "title" "Security and Privacy Lab" `mappend`
                         recentPapersContext `mappend`
                         siteContext
                 getResourceBody
