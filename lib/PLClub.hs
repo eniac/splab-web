@@ -56,75 +56,6 @@ application = Alectryon.hakyllWith config $ \opts -> do
       route   $ flattenIntoFolder "css" <!> setExtension "css"
       compile $ kateThemeToCSSCompiler
 
-    --blog post tags
-    btags <- let mktagid = fromCapture "blog/tags/*.html"
-             in  buildTags "blog/**" mktagid
-
-    match ("blog/*/*" .||. "blog/*") $ do
-        route   $ blogPostRoute
-        compile $ do
-          itemName <- getUnderlying
-          case getBlogType itemName of
-            Blogpost -> do
-              let blogContext =
-                    tagsField "tags" btags `mappend` siteContext
-              customPandocCompiler opts
-                >>= loadAndApplyTemplate "templates/blog.html" blogContext
-                >>= loadAndApplyTemplate "templates/default.html" blogContext
-                >>= relativizeUrls
-            Blogartifact -> error $ "Item " ++ show itemName ++ " looks like an artifact file. \
-                                    \ Artifacts should go into a local assets/ folder"
-
-    match ("blog/*/**" .&&. complement "blog/*/*.md") $ do
-        route   $ blogPostRoute
-        compile $ do
-          itemName <- getUnderlying
-          case getBlogType itemName of
-            Blogpost -> error $ "This looks like a blog post non-artifact file. \
-                                \ This situation should be impossible."
-            Blogartifact -> copyFileCompiler
-
-    match "blog.html" $ do
-        route   $ makeIntoFolder
-        compile $ do
-            blog <- recentFirst =<< loadAllBlogPosts
-            let blogCtx =
-                    listField "blog" siteContext (return blog) `mappend`
-                    constField "title" "PLClub Blog" `mappend`
-                    siteContext
-            getResourceBody
-                >>= applyAsTemplate blogCtx
-                >>= loadAndApplyTemplate "templates/default.html" blogCtx
-                >>= relativizeUrls
-
-    create ["atom.xml"] $ do
-        route   $ idRoute
-        compile $ do
-            posts <- recentFirst =<< loadAllBlogPosts
-            let feedCtx = siteContext
-            renderAtom blogRssConfiguration feedCtx posts
-
-    create ["rss.xml"] $ do
-        route   $ idRoute
-        compile $ do
-            posts <- recentFirst =<< loadAllBlogPosts
-            let feedCtx = siteContext
-            renderRss blogRssConfiguration feedCtx posts
-
-    -- Tag pages for blog tags
-    tagsRules btags $ \tag pattern -> do
-        let title = "All posts tagged \"" ++ tag ++ "\""
-        route idRoute
-        compile $ do
-            posts <- recentFirst =<< loadAll pattern
-            let ctx = constField "title" title
-                      `mappend` listField "posts" siteContext (return posts)
-                      `mappend` defaultContext
-            makeItem ""
-                >>= loadAndApplyTemplate "templates/tag.html" ctx
-                >>= loadAndApplyTemplate "templates/default.html" ctx
-                >>= relativizeUrls
-
     --people tags
     ptags <- buildTags "people/*" (fromCapture "ptags/*.html")
 
@@ -190,21 +121,14 @@ unbindList n as =
 peopleContext :: Tags -> Context String
 peopleContext ptags =
   let faculty  = (unbindList 3) <$> loadTag ptags "faculty" :: Compiler [[Item String]]
+      affiliated = (unbindList 3) <$> loadTag ptags "affiliated" :: Compiler [[Item String]]
       students = (unbindList 3) <$> loadTag ptags "student" :: Compiler [[Item String]]
       postdocs = (unbindList 3) <$> loadTag ptags "postdoc" :: Compiler [[Item String]]
       alum'    = loadTag ptags "alum" :: Compiler [Item String]
       alum     = reverse <$> (sortOnM getYear =<< alum')
   in
     nestedListField "facultyGroup" "faculty" siteContext faculty `mappend`
+    nestedListField "affiliatedGroup" "affiliated" siteContext affiliated `mappend`
     nestedListField "studentGroup" "student" siteContext students`mappend`
     nestedListField "postdocGroup" "postdoc" siteContext postdocs`mappend`
     listField "alum" siteContext alum
-
-blogRssConfiguration :: FeedConfiguration
-blogRssConfiguration = FeedConfiguration
-  { feedTitle = "PL Club Blog"
-  , feedDescription = "Posts from the PL Club at the University of Pennsylvania"
-  , feedAuthorName = "UPenn PL Club"
-  , feedAuthorEmail = "no email address"
-  , feedRoot = "https://www.cis.upenn.edu/~plclub/"
-  }
