@@ -16,8 +16,7 @@ B2HFLAGS = -dl \
 	   --reverse-sort --sort-by-date
 
 MV=mv
-BIBS=bcp.bib weirich.bib zdancewic.bib
-#obastani.bib
+BIBS=zdancewic.bib
 
 .DELETE_ON_ERROR: $(BIBS)
 
